@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from "react";
+import React, { Fragment, useRef, useState } from "react";
 import "./App.css";
 
 /**
@@ -31,6 +31,30 @@ function App() {
   let [data, setData] = useState(null);
   let [error, setError] = useState(null);
   let [loading, setLoading] = useState(false);
+  let inputRef = useRef(null);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    setLoading(true);
+    fetch(url)
+      .then(res => {
+        if (res.status !== 200) {
+          throw new Error(res.statusText);
+        }
+        throwRandomErrorMaybe();
+        return res.json();
+      })
+      .then(data => {
+        setLoading(false);
+        setData(data.title);
+        inputRef.current.value = "";
+      })
+      .catch(err => {
+        setLoading(false);
+        setError(err.message);
+      });
+  }
+
   return (
     <div className="App">
       <header className="App-header">
@@ -46,32 +70,7 @@ function App() {
           >
             <MessageText data={data} error={error} loading={loading} />
           </Message>
-          <button
-            className="button fetch-button"
-            onClick={() => {
-              setLoading(true);
-              fetch(url)
-                .then(res => {
-                  if (res.status !== 200) {
-                    throw new Error(res.statusText);
-                  }
-                  if (getRandomInt(3) === 1) {
-                    throw new Error("Please try your submission again later.");
-                  }
-                  return res.json();
-                })
-                .then(data => {
-                  setLoading(false);
-                  setData(data.title);
-                })
-                .catch(err => {
-                  setLoading(false);
-                  setError(err.message);
-                });
-            }}
-          >
-            Get My Data!
-          </button>
+          <Form ref={inputRef} onSubmit={handleSubmit} />
         </Card>
         <button
           className="button reset-button"
@@ -86,6 +85,18 @@ function App() {
     </div>
   );
 }
+
+const Form = React.forwardRef(({ onSubmit }, inputRef) => {
+  return (
+    <form className="Form" onSubmit={onSubmit}>
+      <label className="Form-label">
+        <span>Your Email</span>
+        <input ref={inputRef} type="text" name="email" />
+      </label>
+      <button className="button">Sign Up!</button>
+    </form>
+  );
+});
 
 function Card(props) {
   return <div className="card" {...props} />;
@@ -103,7 +114,7 @@ function Message({ heading, children, ...props }) {
 function MessageText({ data, loading, error }) {
   return (
     <Fragment>
-      {!data && !loading && <p>Let's get some data</p>}
+      {!data && !loading && <p>Check out all of the latest and greatest!</p>}
       {loading && <p>Loading...</p>}
       {data && <p>{data}</p>}
       {error && <p>{error}</p>}
@@ -115,6 +126,12 @@ export default App;
 
 function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
+}
+
+function throwRandomErrorMaybe() {
+  if (getRandomInt(3) === 1) {
+    throw new Error("Please try your submission again later.");
+  }
 }
 
 // IDLE

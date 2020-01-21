@@ -14,7 +14,7 @@
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: #3a3a3a;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -95,4 +95,36 @@
   border: 0;
   background: #fff;
   color: #222;
+}
+
+.Form {
+  margin: 1em 0 0;
+}
+
+.Form-label {
+  display: block;
+}
+
+.Form-label span {
+  text-align: left;
+  font-size: 0.5em;
+  white-space: nowrap;
+  display: block;
+  width: 100%;
+  margin-bottom: 0.25em;
+}
+
+.Form-label input {
+  --boder-size: 1px;
+  --padding-size: 0.5em;
+  display: block;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  box-shadow: none;
+  border: var(--boder-size) solid rgba(109, 109, 109, 0.7);
+  font-size: 1em;
+  width: calc(100% - (var(--padding-size) * 2) - (var(--boder-size) * 2));
+  padding: calc(var(--padding-size) / 2) var(--padding-size);
+  margin: 0;
 }

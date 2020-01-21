@@ -127,11 +127,11 @@ export function createMachine(machineDefinition) {
       */
       let actions = allActions.filter(action => {
         if (action.type === "ASSIGN_CONTEXT") {
-          let tempContext = {
-            ...nextContext,
-            ...action.assignment(nextContext, event)
-          };
+          let tempContext = { ...nextContext };
+          console.log({ type: action.type });
+          tempContext = action.assignment(nextContext, event);
           nextContext = tempContext;
+          console.log({ nextContext });
           return false;
         }
         return true;
@@ -205,14 +205,14 @@ function interpret(machine) {
       Update our state by calling a transition to find the new state based on
       the event we send.
        */
-      state = machine.transition(state, event);
+      state = machine.transition(state.value, event);
 
       /*
       Now that we have our new state, we can start executing all of the actions
       we stored in the state object in our `createMachine` function in the
       correct order.
       */
-      for (let action of state.actions) {
+      for (let action of state.actions || []) {
         action.exec(state.context, event);
       }
 
@@ -252,7 +252,7 @@ function interpret(machine) {
     start() {
       // Update our status state to indicate that our machine is running
       status = RUNNING;
-      for (let action of state.actions) {
+      for (let action of state.actions || []) {
         /*
         Fire actions with an initializer event to kick off any immediate
         transitions update context, or perform any side effects defined by our
@@ -324,7 +324,10 @@ export function useMachine(initialMachine) {
 export function assign(assignment) {
   return {
     type: "ASSIGN_CONTEXT",
-    assignment
+    assignment(context, event) {
+      let newContext = assignment(context, event);
+      return newContext;
+    }
   };
 }
 
