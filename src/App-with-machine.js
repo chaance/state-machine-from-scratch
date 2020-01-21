@@ -162,29 +162,6 @@ let newsletterMachine = createMachine({
   }
 });
 
-/**
- * A simple button for fetching some data.
- *
- * When the user clicks the button, we want to:
- *   - start fetching data
- *   - change the display of the button to indicate fetching is
- *     happening
- *   - disable the button so clicks do not work while fetching
- *
- * When the fetch is complete, we want to:
- *   - check if the data came back successfully
- *   - if so:
- *       - display the data
- *       - update the button label to show our fetch was OK
- *       - remove it from the screen since we don't need it
- *         anymore!
- *
- *   - if not:
- *       - provide an error message
- *       - reset the button label and its disabled state so
- *         the user can try again.
- */
-
 function App() {
   let [current, send] = useMachine(newsletterMachine);
   let inputRef = useRef(null);
