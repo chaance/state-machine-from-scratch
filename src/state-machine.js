@@ -9,38 +9,48 @@ const RUNNING = "RUNNING";
 const STOPPED = "STOPPED";
 
 /*
-possible actions
+A machine definition is an object with defined state values and transition
+instructions. In our implementation it will look something like this.
 
-{ type: 'ASSIGN_CONTEXT', assign: (nextContext: Partial<ContextObj>, eventObject<EventObj>) => ContextObj }
-
- */
-
-/*
-machineDefinition = {
-  initial: StateKey,
-  actions: { type: ActionType; exec?(context: Context, event: Event): void }[]
+let machineDefinition = {
+  initial: "IDLE",
+  context: {
+    some: 'data',
+  },
   states: {
-    [key: StateKey]: {
+    "IDLE": {
       on: {
-        [key: EventType]: {
-          target: StateKey,
-          actions?: func[],
-          cond?(context: Context, event: Event): boolean
+        "DO_A_THING": {
+          target: "BUSY",
+          actions: [
+            { type: "sideEffect", exec: (context, event) => ({ ...event.someData }) }
+          ]
         }
       }
     },
+    "BUSY": {
+      on: {
+        "STOP_DOING": {
+          target: "IDLE",
+        }
+      }
+    }
   }
 }
 */
 
 export function createMachine(machineDefinition) {
+  /*
+  A machine will have an initialState key and a transition function. That's it!
+  The rest of our magic happens with our interpreter and our React hook.
+  */
   let machine = {
     initialState: {
       value: machineDefinition.initial,
       actions: machineDefinition.states[machineDefinition.initial].entry,
       context: machineDefinition.context
     },
-    transition(currentState /* string */, event /* { type: string; ... } */) {
+    transition(currentState, event) {
       /*
       First thing's first, we need to define our state object with the current
       state's value, its associated contextual data, and any actions we need to
@@ -148,6 +158,17 @@ export function createMachine(machineDefinition) {
 }
 
 /*
+We could use our machine directly like this:
+
+let myMachine = createMachine({...});
+let state = machine.initialState;
+console.log(state.value) // whatever our initial state is, maybe "IDLE"
+state = machine.transition('IDLE', 'DO_A_THING')
+console.log(state.value) // whatever our next state is, maybe "BUSY"
+
+This isn't really sufficient for a real app, so we'll build an interpreter
+function.
+
 From the XState docs:
 
 While a state machine/statechart with a pure .transition() function is useful
