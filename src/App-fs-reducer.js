@@ -144,12 +144,10 @@ function App() {
 
   useEffect(() => {
     if (current.value === SUBMITTING) {
-      /*
-      Only abort the fetch and send a cancel event
-      if we interrupt the process before receiving data
-      */
+      // Set up for cancellation
       shouldAbort.current = true;
       let abortController = new AbortController();
+
       fetch(url, { signal: abortController.signal })
         .then(res => {
           // Throw random errors for demo purposes
