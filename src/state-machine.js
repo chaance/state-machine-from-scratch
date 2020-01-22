@@ -1,6 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 
 /*
+Welcome to our state machine! This code was inspired heavily by @xstate/fsm.
+
+This has been greatly simplified and heavily annotated to make it easier to read
+and understand. If you want to use something like this in a project, I'd
+recommend starting with @xstate/fsm to get a better grasp of the concepts after
+parsing through this code and the demo apps.
+
+Of course you can also write your own machine code that suits your needs as well!
+Remember that the library or code you use isn't important, it's the concepts that
+are. Every project may not need all of our machine's features, but any stateful
+component can greatly benefit from the concepts and strategies outlined by the
+finite state machine model.
+
+This example gives you a good basis of tools you can use for a lot of components,
+but there is far more to the model that we won't cover in the talk or in this
+codebase. I highly recommend reading the XState docs as they are a treasure trove
+of knowledge with tons of links to additional resources throughout.
+
+https://xstate.js.org/docs/
+
+So let's write some code!
+
+****
+
 It's helpful to start any project using a state machine by defining our possible
 states
 */
