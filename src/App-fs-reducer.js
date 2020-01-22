@@ -76,15 +76,17 @@ function reducer(state, event) {
     case LOG_ERROR:
       switch (state.value) {
         case SUBMITTING:
-          return {
-            ...state,
-            value: ERROR,
-            context: {
-              ...state.context,
-              error: event.error,
-              data: null
-            }
-          };
+          return !event.aborted
+            ? {
+                ...state,
+                value: ERROR,
+                context: {
+                  ...state.context,
+                  error: event.error,
+                  data: null
+                }
+              }
+            : state;
         default:
           return state;
       }
@@ -107,10 +109,14 @@ function reducer(state, event) {
     case CANCEL_SUBMIT:
       switch (state.value) {
         case SUBMITTING:
-          return {
-            ...state,
-            value: WORKING
-          };
+          if (event.shouldAbort) {
+            event.abortController.abort();
+            return {
+              ...state,
+              value: WORKING
+            };
+          }
+          return state;
         default:
           return state;
       }
@@ -146,46 +152,40 @@ function App() {
       let abortController = new AbortController();
       fetch(url, { signal: abortController.signal })
         .then(res => {
-          if (res.status !== 200) {
-            throw new Error(res.statusText);
-          }
+          // Throw random errors for demo purposes
           throwRandomErrorMaybe();
           return res.json();
         })
         .then(data => {
-          // this is a fake API call so we'll just append the email here
-          // just to keep this moving.
-          data.email = current.context.email;
           shouldAbort.current = false;
-          send({ type: LOG_SUCCESS, data });
+          send({
+            type: LOG_SUCCESS,
+            data: {
+              ...data,
+              // this is a fake API call so we'll just append the email here
+              // just to keep this moving.
+              email: current.context.email
+            }
+          });
         })
         .catch(error => {
-          if (!abortController.signal.aborted) {
-            shouldAbort.current = false;
-            send({ type: LOG_ERROR, error });
-          }
+          shouldAbort.current = false;
+          send({
+            type: LOG_ERROR,
+            error,
+            aborted: abortController.signal.aborted
+          });
         });
 
       return () => {
-        if (shouldAbort.current) {
-          abortController.abort();
-          send({ type: CANCEL_SUBMIT });
-        }
+        send({
+          type: CANCEL_SUBMIT,
+          abortController,
+          shouldAbort: shouldAbort.current
+        });
       };
     }
   }, [current.context.email, current.value]);
-
-  useEffect(() => {
-    if (current.context.data) {
-      console.log(current.context.data);
-    }
-  }, [current.context.data]);
-
-  useEffect(() => {
-    if (current.context.error) {
-      console.error(current.context.error);
-    }
-  }, [current.context.error]);
 
   return (
     <div className="App">

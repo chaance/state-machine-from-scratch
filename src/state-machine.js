@@ -47,8 +47,8 @@ export function createMachine(machineDefinition) {
   let machine = {
     initialState: {
       value: machineDefinition.initial,
-      actions: machineDefinition.states[machineDefinition.initial].entry,
-      context: machineDefinition.context
+      actions: machineDefinition.states[machineDefinition.initial].entry || [],
+      context: machineDefinition.context || {}
     },
     transition(currentState, event) {
       /*
@@ -58,9 +58,9 @@ export function createMachine(machineDefinition) {
       call this our `unchangedState` we can use if no transitions match our
       definition.
        */
-      let context = machineDefinition.context;
+      let context = currentState.context || machineDefinition.context;
       let unchangedState = {
-        value: currentState,
+        value: currentState.value,
         context,
         actions: []
       };
@@ -70,7 +70,7 @@ export function createMachine(machineDefinition) {
       from our machine definition. If the transition isn't defined, we can bail
       out and return the unchanged state object.
       */
-      let stateDefinition = machineDefinition.states[currentState];
+      let stateDefinition = machineDefinition.states[currentState.value];
       let transitionDefinition = stateDefinition.on[event.type];
 
       if (!transitionDefinition) {
@@ -82,15 +82,15 @@ export function createMachine(machineDefinition) {
         1) what is our target state?
         2) what conditions need to be met for the transition to be successful?
       */
-      let target = transitionDefinition.target || currentState;
+      let target = transitionDefinition.target || currentState.value;
 
       /*
       The conditional function should return true if the transition is allowed,
       and false if not.
       */
-      function cond(...args) {
+      function cond(context, event) {
         if (typeof transitionDefinition.cond === "function") {
-          return transitionDefinition.cond(...args);
+          return transitionDefinition.cond(context, event);
         } else {
           return true;
         }
@@ -161,7 +161,7 @@ We could use our machine directly like this:
 let myMachine = createMachine({...});
 let state = machine.initialState;
 console.log(state.value) // whatever our initial state is, maybe "IDLE"
-state = machine.transition('IDLE', 'DO_A_THING')
+state = machine.transition({ value: 'IDLE' }, 'DO_A_THING')
 console.log(state.value) // whatever our next state is, maybe "BUSY"
 
 This isn't really sufficient for a real app, so we'll build an interpreter
@@ -224,7 +224,7 @@ function interpret(machine) {
       Update our state by calling a transition to find the new state based on
       the event we send.
        */
-      state = machine.transition(state.value, event);
+      state = machine.transition(state, event);
 
       /*
       Now that we have our new state, we can start executing all of the actions

@@ -61,6 +61,27 @@ const logError = {
   }
 };
 
+const logData = {
+  type: "logData",
+  exec(context) {
+    console.log(context.data);
+  }
+};
+
+const submit = {
+  type: "submit",
+  exec: () => void null
+};
+
+const cancelSubmit = {
+  type: "cancelSubmit",
+  exec(context, event) {
+    if (event.shouldAbort) {
+      event.abortController.abort();
+    }
+  }
+};
+
 let newsletterMachine = createMachine({
   initial: EMPTY,
   context: {
@@ -94,13 +115,22 @@ let newsletterMachine = createMachine({
       }
     },
     [SUBMITTING]: {
+      entry: [submit],
       on: {
         [CANCEL_SUBMIT]: {
-          target: WORKING
+          target: WORKING,
+          cond(context, event) {
+            return event.shouldAbort;
+          },
+          actions: [cancelSubmit]
         },
         [LOG_ERROR]: {
           target: ERROR,
-          actions: [setError, logError]
+          actions: [setError, logError],
+          cond(context, event) {
+            // Only log an error if the fetch signal was not aborted
+            return !event.aborted;
+          }
         },
         [LOG_SUCCESS]: {
           target: SUCCESS,
@@ -125,6 +155,7 @@ let newsletterMachine = createMachine({
       }
     },
     [SUCCESS]: {
+      entry: [logData],
       on: {
         [CHANGE_VALUE]: {
           target: WORKING,
@@ -154,56 +185,49 @@ function App() {
   }
 
   useEffect(() => {
-    if (current.value === SUBMITTING) {
-      /*
-      Only abort the fetch and send a cancel event
-      if we interrupt the process before receiving data
-      */
-      shouldAbort.current = true;
-      let abortController = new AbortController();
-      fetch(url, { signal: abortController.signal })
-        .then(res => {
-          if (res.status !== 200) {
-            throw new Error(res.statusText);
-          }
-          throwRandomErrorMaybe();
-          return res.json();
-        })
-        .then(data => {
-          // this is a fake API call so we'll just append the email here
-          // just to keep this moving.
-          data.email = current.context.email;
-          shouldAbort.current = false;
-          send({ type: LOG_SUCCESS, data });
-        })
-        .catch(error => {
-          if (!abortController.signal.aborted) {
+    for (let action of current.actions) {
+      if (action.type === "submit") {
+        // Set up for cancellation
+        shouldAbort.current = true;
+        let abortController = new AbortController();
+
+        fetch(url, { signal: abortController.signal })
+          .then(res => {
+            // Throw random errors for demo purposes
+            throwRandomErrorMaybe();
+            return res.json();
+          })
+          .then(data => {
             shouldAbort.current = false;
-            send({ type: LOG_ERROR, error });
-          }
-        });
+            send({
+              type: LOG_SUCCESS,
+              data: {
+                ...data,
+                // this is a fake API call so we'll just append the email here
+                // just to keep this moving.
+                email: current.context.email
+              }
+            });
+          })
+          .catch(error => {
+            shouldAbort.current = false;
+            send({
+              type: LOG_ERROR,
+              error,
+              aborted: abortController.signal.aborted
+            });
+          });
 
-      return () => {
-        if (shouldAbort.current) {
-          abortController.abort();
-          send({ type: CANCEL_SUBMIT });
-        }
-      };
+        return () => {
+          send({
+            type: CANCEL_SUBMIT,
+            abortController,
+            shouldAbort: shouldAbort.current
+          });
+        };
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current.value]);
-
-  useEffect(() => {
-    if (current.context.data) {
-      console.log(current.context.data);
-    }
-  }, [current.context.data]);
-
-  useEffect(() => {
-    if (current.context.error) {
-      console.error(current.context.error);
-    }
-  }, [current.context.error]);
+  }, [current, send]);
 
   return (
     <div className="App">
@@ -229,7 +253,7 @@ function App() {
           </div>
           <Form
             ref={inputRef}
-            value={current.context.email}
+            value={current.context.email || ""}
             onChange={event => {
               send({ type: CHANGE_VALUE, value: event.target.value });
             }}
@@ -251,7 +275,6 @@ function App() {
 
 const Form = React.forwardRef(
   ({ onChange, onSubmit, state, value }, inputRef) => {
-    console.log({ state });
     return (
       <form className="Form" onSubmit={onSubmit}>
         <label className="Form-label">
