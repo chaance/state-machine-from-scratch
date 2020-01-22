@@ -13,4 +13,6 @@ I have created three versions of the same email subscription widget:
   2) One using our custom state machine (`src/App-with-machine.js`)
   3) One using a plain reducer implemented using some of concepts we learned during the talk (`src/App-fs-reducer.js`)
 
+To run any of the demos, update the import statement in `src/index.js` to use the appropriate `App` file.
+
 The custom state machine is located in `src/state-machine.js`. The rest of the code is for demo purposes only and should not be taken too seriously. Enjoy!
