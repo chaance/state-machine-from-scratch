@@ -1,14 +1,17 @@
-import React, { Fragment, useRef, useReducer } from "react";
+import React, { useEffect, useRef, useReducer } from "react";
 import "./App.css";
 
 // STATES
-const NOT_SUBMITTED = "NOT_SUBMITTED";
+const EMPTY = "EMPTY";
+const WORKING = "WORKING";
 const SUBMITTING = "SUBMITTING";
 const SUCCESS = "SUCCESS";
 const ERROR = "ERROR";
 
 // EVENTS
 const RESET = "RESET";
+const CANCEL_SUBMIT = "CANCEL_SUBMIT";
+const CHANGE_VALUE = "CHANGE_VALUE";
 const SUBMIT = "SUBMIT";
 const LOG_ERROR = "LOG_ERROR";
 const LOG_SUCCESS = "LOG_SUCCESS";
@@ -21,12 +24,12 @@ function reducer(state, event) {
   switch (event.type) {
     case RESET:
       switch (state.value) {
-        case NOT_SUBMITTED:
+        case EMPTY:
+        case WORKING:
         case SUCCESS:
         case ERROR:
-          event.inputRef.current.value = "";
           return {
-            value: NOT_SUBMITTED,
+            value: EMPTY,
             context: {
               email: "",
               error: null,
@@ -36,17 +39,35 @@ function reducer(state, event) {
         default:
           return state;
       }
+    case CHANGE_VALUE:
+      switch (state.value) {
+        case ERROR:
+        case SUCCESS:
+        case WORKING:
+        case EMPTY:
+          return {
+            ...state,
+            value: WORKING,
+            context: {
+              ...state.context,
+              email: event.value,
+              error: null
+            }
+          };
+        default:
+          return state;
+      }
     case SUBMIT:
       switch (state.value) {
-        case NOT_SUBMITTED:
+        case WORKING:
         case SUCCESS:
+        case ERROR:
           return {
             ...state,
             value: SUBMITTING,
             context: {
               ...state.context,
-              data: null,
-              error: event.message
+              data: null
             }
           };
         default:
@@ -60,7 +81,7 @@ function reducer(state, event) {
             value: ERROR,
             context: {
               ...state.context,
-              error: event.message,
+              error: event.error,
               data: null
             }
           };
@@ -70,15 +91,25 @@ function reducer(state, event) {
     case LOG_SUCCESS:
       switch (state.value) {
         case SUBMITTING:
-          event.inputRef.current.value = "";
           return {
             ...state,
             value: SUCCESS,
             context: {
               ...state.context,
-              data: event.message,
+              email: "",
+              data: event.data,
               error: null
             }
+          };
+        default:
+          return state;
+      }
+    case CANCEL_SUBMIT:
+      switch (state.value) {
+        case SUBMITTING:
+          return {
+            ...state,
+            value: WORKING
           };
         default:
           return state;
@@ -90,7 +121,7 @@ function reducer(state, event) {
 
 function App() {
   let [current, send] = useReducer(reducer, {
-    value: NOT_SUBMITTED,
+    value: EMPTY,
     context: {
       error: null,
       data: null,
@@ -98,51 +129,100 @@ function App() {
     }
   });
   let inputRef = useRef(null);
+  let shouldAbort = useRef(false);
 
   function handleSubmit(event) {
     event.preventDefault();
     send({ type: SUBMIT });
-    fetch(url)
-      .then(res => {
-        if (res.status !== 200) {
-          throw new Error(res.statusText);
-        }
-        throwRandomErrorMaybe();
-        return res.json();
-      })
-      .then(data => {
-        send({ type: LOG_SUCCESS, inputRef, message: data.title });
-      })
-      .catch(err => {
-        send({ type: LOG_ERROR, message: err.message });
-      });
   }
+
+  useEffect(() => {
+    if (current.value === SUBMITTING) {
+      /*
+      Only abort the fetch and send a cancel event
+      if we interrupt the process before receiving data
+      */
+      shouldAbort.current = true;
+      let abortController = new AbortController();
+      fetch(url, { signal: abortController.signal })
+        .then(res => {
+          if (res.status !== 200) {
+            throw new Error(res.statusText);
+          }
+          throwRandomErrorMaybe();
+          return res.json();
+        })
+        .then(data => {
+          // this is a fake API call so we'll just append the email here
+          // just to keep this moving.
+          data.email = current.context.email;
+          shouldAbort.current = false;
+          send({ type: LOG_SUCCESS, data });
+        })
+        .catch(error => {
+          if (!abortController.signal.aborted) {
+            shouldAbort.current = false;
+            send({ type: LOG_ERROR, error });
+          }
+        });
+
+      return () => {
+        if (shouldAbort.current) {
+          abortController.abort();
+          send({ type: CANCEL_SUBMIT });
+        }
+      };
+    }
+  }, [current.context.email, current.value]);
+
+  useEffect(() => {
+    if (current.context.data) {
+      console.log(current.context.data);
+    }
+  }, [current.context.data]);
+
+  useEffect(() => {
+    if (current.context.error) {
+      console.error(current.context.error);
+    }
+  }, [current.context.error]);
 
   return (
     <div className="App">
       <header className="App-header">
-        <Card>
-          <Message
-            heading={
-              current.value === SUCCESS
-                ? "Thank you for signing up!"
-                : current.value === ERROR
+        <div className="card">
+          <div className="message">
+            <h3>
+              {current.value === ERROR
                 ? "Uh oh, something went wrong!"
-                : "Sign up for our newsletter"
-            }
-          >
-            <MessageText
-              state={current.value}
-              successMessage={current.context.data}
-              errorMessage={current.context.error}
-            />
-          </Message>
-          <Form ref={inputRef} onSubmit={handleSubmit} state={current.value} />
-        </Card>
+                : current.value === SUCCESS
+                ? "Thank you for signing up!"
+                : "Sign up for our newsletter"}
+            </h3>
+            <p>
+              {current.value === SUBMITTING
+                ? "Loading..."
+                : current.value === ERROR
+                ? current.context.error?.message
+                : current.value === SUCCESS
+                ? current.context.data?.title
+                : "Check out all of the latest and greatest!"}
+            </p>
+          </div>
+          <Form
+            ref={inputRef}
+            value={current.context.email}
+            onChange={event => {
+              send({ type: CHANGE_VALUE, value: event.target.value });
+            }}
+            onSubmit={handleSubmit}
+            state={current.value}
+          />
+        </div>
         <button
           className="button reset-button"
           onClick={() => {
-            send({ type: RESET, inputRef });
+            send({ type: RESET });
           }}
         >
           Reset
@@ -152,53 +232,31 @@ function App() {
   );
 }
 
-const Form = React.forwardRef(({ onSubmit, state }, inputRef) => {
-  return (
-    <form className="Form" onSubmit={onSubmit}>
-      <label className="Form-label">
-        <span>Your Email</span>
-        <input
-          ref={inputRef}
-          type="text"
-          name="email"
-          disabled={state === SUBMITTING}
-        />
-      </label>
-      <button disabled={state === SUBMITTING} className="button">
-        Sign Up!
-      </button>
-    </form>
-  );
-});
-
-function Card(props) {
-  return <div className="card" {...props} />;
-}
-
-function Message({ heading, children, ...props }) {
-  return (
-    <div className="message" {...props}>
-      <h3>{heading}</h3>
-      {children}
-    </div>
-  );
-}
-
-function MessageText({ state, successMessage, errorMessage }) {
-  return (
-    <Fragment>
-      {state === SUBMITTING ? (
-        <p>Loading...</p>
-      ) : state === ERROR ? (
-        <p>{errorMessage}</p>
-      ) : state === SUCCESS ? (
-        <p>{successMessage}</p>
-      ) : (
-        <p>Check out all of the latest and greatest!</p>
-      )}
-    </Fragment>
-  );
-}
+const Form = React.forwardRef(
+  ({ onChange, onSubmit, state, value }, inputRef) => {
+    return (
+      <form className="Form" onSubmit={onSubmit}>
+        <label className="Form-label">
+          <span>Your Email</span>
+          <input
+            ref={inputRef}
+            type="text"
+            name="email"
+            disabled={state === SUBMITTING}
+            value={value}
+            onChange={onChange}
+          />
+        </label>
+        <button
+          disabled={state === SUBMITTING || state === EMPTY}
+          className="button"
+        >
+          Sign Up!
+        </button>
+      </form>
+    );
+  }
+);
 
 export default App;
 

@@ -138,10 +138,8 @@ export function createMachine(machineDefinition) {
       let actions = allActions.filter(action => {
         if (action.type === "ASSIGN_CONTEXT") {
           let tempContext = { ...nextContext };
-          console.log({ type: action.type });
           tempContext = action.assignment(nextContext, event);
           nextContext = tempContext;
-          console.log({ nextContext });
           return false;
         }
         return true;

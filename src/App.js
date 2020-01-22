@@ -1,27 +1,14 @@
-import React, { Fragment, useRef, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import "./App.css";
 
 /**
- * A simple button for fetching some data.
+ * Warning: This file is error prone on purpose!
+ * This is what we see a lot of in the wild when it comes to handling
+ * state in React components. Complex states existing independently
+ * of one another can leave a component in multiple conflicitng states
+ * at once. No good! We should refactor this so that the component
+ * exists in only one state at a single point in time.
  *
- * When the user clicks the button, we want to:
- *   - start fetching data
- *   - change the display of the button to indicate fetching is
- *     happening
- *   - disable the button so clicks do not work while fetching
- *
- * When the fetch is complete, we want to:
- *   - check if the data came back successfully
- *   - if so:
- *       - display the data
- *       - update the button label to show our fetch was OK
- *       - remove it from the screen since we don't need it
- *         anymore!
- *
- *   - if not:
- *       - provide an error message
- *       - reset the button label and its disabled state so
- *         the user can try again.
  */
 let user = "chancestrickland";
 let repo = "state-machine-from-scratch";
@@ -31,6 +18,7 @@ function App() {
   let [data, setData] = useState(null);
   let [error, setError] = useState(null);
   let [loading, setLoading] = useState(false);
+  let [email, setEmail] = useState("");
   let inputRef = useRef(null);
 
   function handleSubmit(event) {
@@ -41,37 +29,66 @@ function App() {
         if (res.status !== 200) {
           throw new Error(res.statusText);
         }
+        // just throw an error every once in a while to illustrate
+        // the point
         throwRandomErrorMaybe();
+
         return res.json();
       })
       .then(data => {
+        // this is a fake API call so we'll just append the email here
+        // just to keep this moving.
+        data.email = email;
+
         setLoading(false);
-        setData(data.title);
-        inputRef.current.value = "";
+        setData(data);
+        setEmail("");
       })
       .catch(err => {
         setLoading(false);
-        setError(err.message);
+        setError(err);
       });
   }
+
+  useEffect(() => {
+    if (data) {
+      console.log(data);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (error) {
+      console.error(error);
+    }
+  }, [error]);
 
   return (
     <div className="App">
       <header className="App-header">
-        <Card>
-          <Message
-            heading={
-              data
+        <div className="card">
+          <div className="message">
+            <h3>
+              {data
                 ? "Thank you for signing up!"
                 : error
                 ? "Uh oh, something went wrong!"
-                : "Sign up for our newsletter"
-            }
-          >
-            <MessageText data={data} error={error} loading={loading} />
-          </Message>
-          <Form ref={inputRef} onSubmit={handleSubmit} />
-        </Card>
+                : "Sign up for our newsletter"}
+            </h3>
+
+            {!(data || data.title) && !loading && (
+              <p>Check out all of the latest and greatest!</p>
+            )}
+            {loading && <p>Loading...</p>}
+            {data && data.title && <p>{data.title}</p>}
+            {error && error.message && <p>{error.message}</p>}
+          </div>
+          <Form
+            value={email}
+            setValue={setEmail}
+            ref={inputRef}
+            onSubmit={handleSubmit}
+          />
+        </div>
         <button
           className="button reset-button"
           onClick={() => {
@@ -86,41 +103,23 @@ function App() {
   );
 }
 
-const Form = React.forwardRef(({ onSubmit }, inputRef) => {
+const Form = React.forwardRef(({ onSubmit, value, setValue }, inputRef) => {
   return (
     <form className="Form" onSubmit={onSubmit}>
       <label className="Form-label">
         <span>Your Email</span>
-        <input ref={inputRef} type="text" name="email" />
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={event => setValue(event.target.value)}
+          type="text"
+          name="email"
+        />
       </label>
       <button className="button">Sign Up!</button>
     </form>
   );
 });
-
-function Card(props) {
-  return <div className="card" {...props} />;
-}
-
-function Message({ heading, children, ...props }) {
-  return (
-    <div className="message" {...props}>
-      <h3>{heading}</h3>
-      {children}
-    </div>
-  );
-}
-
-function MessageText({ data, loading, error }) {
-  return (
-    <Fragment>
-      {!data && !loading && <p>Check out all of the latest and greatest!</p>}
-      {loading && <p>Loading...</p>}
-      {data && <p>{data}</p>}
-      {error && <p>{error}</p>}
-    </Fragment>
-  );
-}
 
 export default App;
 
