@@ -37,6 +37,9 @@ let machineDefinition = {
     }
   }
 }
+
+An action will be an object that takes the shape of:
+{ type: string; exec(context, event): void }
 */
 
 export function createMachine(machineDefinition) {
