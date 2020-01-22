@@ -2,7 +2,7 @@
 
 This project was developed for a talk at [Reactadelphia](https://www.meetup.com/Reactadelphia/) on January 21, 2020. This is not intended to be a fully featured state machine implementation, and I do not recommend any of the code for production use.
 
-If you like the APIs here and want to try similar tactics for your project, I recommend trying [`@xstate/fsm`](https://xstate.js.org/docs/packages/xstate-fsm/). This code was largely inspired by the implementation of that package.
+If you like the APIs here and want to try similar tactics for your project, I recommend trying [`@xstate/fsm`](https://xstate.js.org/docs/packages/xstate-fsm/). This code was largely inspired by the implementation of that package (and the API of the machine config is interchangable!).
 
 If you want to dig in more deeply to state machines, I highly recommend reading the [XState docs](https://xstate.js.org/docs/) as they are a treasure trove of knowledge with tons of links to additional resources throughout.
 
